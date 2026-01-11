@@ -8,6 +8,13 @@ import sodium from "libsodium-wrappers";
  * @param key - 32-byte key used for encryption
  * @returns Decrypted plaintext
  */
+export class DecryptionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DecryptionError";
+  }
+}
+
 export async function decryptPaste(
   ciphertext: Uint8Array,
   nonce: Uint8Array,
@@ -15,13 +22,24 @@ export async function decryptPaste(
 ): Promise<string> {
   await sodium.ready;
 
-  const plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-    null, // no secret nonce prefix
-    ciphertext,
-    null, // no additional authenticated data
-    nonce,
-    key,
-  );
+  let plaintext: Uint8Array | null = null;
 
-  return sodium.to_string(plaintext);
+  try {
+    plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
+      null, // no secret nonce prefix
+      ciphertext,
+      null, // no additional authenticated data
+      nonce,
+      key,
+    );
+
+    return sodium.to_string(plaintext);
+  } catch (error) {
+    console.log("decryption error", error);
+    throw new DecryptionError(
+      "Failed to decrypt: invalid key or corrupted data",
+    );
+  } finally {
+    if (plaintext) sodium.memzero(plaintext);
+  }
 }

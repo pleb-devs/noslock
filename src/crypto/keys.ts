@@ -15,6 +15,10 @@ export function keyToHex(key: Uint8Array): string {
  * @returns 32-byte key
  */
 export function hexToKey(hex: string): Uint8Array {
+  // Validate hex format (64 hex characters for 32 bytes)
+  if (!/^[0-9a-f]{64}$/i.test(hex)) {
+    throw new Error('Invalid key format: must be 64-character hex string');
+  }
   return sodium.from_hex(hex);
 }
 

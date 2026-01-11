@@ -17,28 +17,41 @@ export interface EncryptedPaste {
 export async function encryptPaste(plaintext: string): Promise<EncryptedPaste> {
   await sodium.ready;
 
-  // Generate random 32-byte symmetric key
-  const key = sodium.randombytes_buf(
-    sodium.crypto_aead_xchacha20poly1305_ietf_KEYBYTES // 32
-  );
+  let key: Uint8Array | null = null;
+  
+  try {
+    // Generate random 32-byte symmetric key
+    key = sodium.randombytes_buf(
+      sodium.crypto_aead_xchacha20poly1305_ietf_KEYBYTES // 32
+    );
 
-  // Generate random 24-byte nonce
-  const nonce = sodium.randombytes_buf(
-    sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES // 24
-  );
+    // Generate random 24-byte nonce
+    const nonce = sodium.randombytes_buf(
+      sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES // 24
+    );
 
-  // Generate random document ID
-  const docIdBytes = sodium.randombytes_buf(32);
-  const docId = sodium.to_hex(docIdBytes);
+    // Generate random document ID
+    const docIdBytes = sodium.randombytes_buf(32);
+    const docId = sodium.to_hex(docIdBytes);
 
-  // Encrypt with XChaCha20-Poly1305
-  const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
-    sodium.from_string(plaintext),
-    null,  // no additional authenticated data
-    null,  // no secret nonce prefix
-    nonce,
-    key
-  );
+    // Encrypt with XChaCha20-Poly1305
+    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
+      sodium.from_string(plaintext),
+      null,  // no additional authenticated data
+      null,  // no secret nonce prefix
+      nonce,
+      key
+    );
 
-  return { ciphertext, nonce, key, docId };
+    // Return a copy of the key before clearing memory
+    return { 
+      ciphertext, 
+      nonce, 
+      key: new Uint8Array(key),
+      docId 
+    };
+  } finally {
+    // Clear sensitive data from memory
+    if (key) sodium.memzero(key);
+  }
 }
