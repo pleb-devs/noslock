@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { encryptPaste } from "@/crypto/encrypt";
+import { encryptPaste } from "../crypto/encrypt";
 
 interface EditorProps {
-  onEncrypt: (docId: string, key: Uint8Array) => void;
+  onEncrypt: (
+    docId: string,
+    key: Uint8Array,
+    ciphertext: Uint8Array,
+    nonce: Uint8Array,
+  ) => void;
 }
 
 export function Editor({ onEncrypt }: EditorProps) {
@@ -11,13 +16,18 @@ export function Editor({ onEncrypt }: EditorProps) {
 
   const handleEncrypt = async () => {
     if (!content.trim()) return;
-
     setIsEncrypting(true);
     try {
-      const { docId, key } = await encryptPaste(content);
-      onEncrypt(docId, key);
+      console.log("🔒 Starting encryption process...");
+      const { docId, key, ciphertext, nonce } = await encryptPaste(content);
+      console.log("✅ Encryption completed successfully");
+      console.log("🔗 Document ID:", docId);
+      console.log("🔑 Key (hex):", key);
+      console.log("📊 Ciphertext (hex):", ciphertext);
+      console.log("🔐 Nonce (hex):", nonce);
+      onEncrypt(docId, key, ciphertext, nonce);
     } catch (error) {
-      console.error("Encryption failed:", error);
+      console.error("❌ Encryption failed:", error);
     } finally {
       setIsEncrypting(false);
     }
