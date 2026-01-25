@@ -347,6 +347,10 @@ docs: update tech-stack with event structure
 - Monitor with `vite-bundle-visualizer`
 - Lazy load routes if needed (not for MVP)
 
+### Memory Management
+- All cryptographic keys and sensitive data are cleared from memory using sodium.memzero()
+- No sensitive data is stored in browser storage or caches
+
 ### Rendering
 - Avoid unnecessary re-renders
 - Memoize expensive computations

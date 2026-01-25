@@ -1,9 +1,10 @@
-import { Routes, Route, useNavigate, Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { Routes, Route, useNavigate, Link, useParams } from "react-router-dom";
+import { useState } from "react";
 import { Editor } from "./components/Editor";
-import { Share } from "./components/Share";
 import { Reader } from "./components/Reader";
+import { Share } from "./components/Share";
 import { LinkReader } from "./components/LinkReader";
+import sodium from "libsodium-wrappers";
 import { publishPaste } from "./nostr/publish";
 
 function Home({
@@ -48,14 +49,28 @@ function Home({
   );
 }
 
+function DocIdRoute({
+  stateDocId,
+  stateKey,
+}: {
+  stateDocId: string | null;
+  stateKey: Uint8Array | null;
+}) {
+  const { docId: urlDocId } = useParams<{ docId: string }>();
+
+  // Only show Share if state docId matches URL docId (user just created this paste)
+  if (stateDocId && stateKey && stateDocId === urlDocId) {
+    return <Share docId={stateDocId} encryptionKey={stateKey} />;
+  }
+  return <Reader />;
+}
+
 function App() {
   const [docId, setDocId] = useState<string | null>(null);
   const [key, setKey] = useState<Uint8Array | null>(null);
-  const [ciphertext, setCiphertext] = useState<Uint8Array | null>(null);
-  const [nonce, setNonce] = useState<Uint8Array | null>(null);
   const navigate = useNavigate();
 
-  const handleEncrypt = (
+  const handleEncrypt = async (
     id: string,
     encryptionKey: Uint8Array,
     cipher: Uint8Array,
@@ -63,23 +78,26 @@ function App() {
   ) => {
     console.log("📝 App: Received encrypted data from Editor");
     console.log("🔗 Document ID:", id);
+
+    // Set state for Share component
     setDocId(id);
     setKey(encryptionKey);
-    setCiphertext(cipher);
-    setNonce(non);
-  };
 
-  useEffect(() => {
-    if (docId && key && ciphertext && nonce) {
-      console.log("📦 App: Publishing paste to nostr relays...");
-      console.log("🔗 Document ID:", docId);
-      publishPaste(docId, nonce, ciphertext).catch(console.error);
-      if (!window.location.pathname.startsWith(`/${docId}`)) {
-        console.log("🧭 App: Navigating to share URL:", `/${docId}`);
-        navigate(`/${docId}`);
-      }
+    // Publish to nostr
+    console.log("📦 App: Publishing paste to nostr relays...");
+    try {
+      await publishPaste(id, non, cipher);
+    } catch (err) {
+      console.error(err);
     }
-  }, [docId, key, ciphertext, nonce, navigate]);
+
+    // Navigate to share page with key hash
+    const keyHex = sodium.to_hex(encryptionKey);
+    if (!window.location.pathname.startsWith(`/${id}`)) {
+      console.log("🧭 App: Navigating to share URL:", `/${id}#${keyHex}`);
+      navigate(`/${id}#${keyHex}`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-neutral-900 text-neutral-100 font-mono">
@@ -96,13 +114,7 @@ function App() {
           <Route path="/" element={<Home onEncrypt={handleEncrypt} />} />
           <Route
             path="/:docId"
-            element={
-              docId && key ? (
-                <Share docId={docId} encryptionKey={key!} />
-              ) : (
-                <Reader />
-              )
-            }
+            element={<DocIdRoute stateDocId={docId} stateKey={key} />}
           />
         </Routes>
       </main>

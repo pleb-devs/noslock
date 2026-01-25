@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { buildCapabilityUrl } from "../utils/url";
 import { copyToClipboard } from "../utils/clipboard";
+import sodium from "libsodium-wrappers";
 
 interface ShareProps {
   docId: string;
@@ -10,6 +12,11 @@ interface ShareProps {
 export function Share({ docId, encryptionKey }: ShareProps) {
   const [isCopied, setIsCopied] = useState(false);
   const capabilityUrl = buildCapabilityUrl(docId, encryptionKey);
+
+  // Prevent capability URL from appearing in browser history
+  useEffect(() => {
+    window.history.replaceState(null, "", `/${docId}`);
+  }, [docId]);
 
   console.log("📤 Share component rendering");
   console.log("🔗 Document ID:", docId);
@@ -34,7 +41,7 @@ export function Share({ docId, encryptionKey }: ShareProps) {
         </h2>
         <div className="bg-neutral-900 border border-neutral-800 rounded p-4 font-mono text-sm text-green-400 break-all select-all mb-4">
           <span className="text-neutral-500">noslock://</span>
-          {docId}#{keyToHex(encryptionKey)}
+          {docId}#{sodium.to_hex(encryptionKey)}
         </div>
         <p className="text-neutral-500 font-mono text-sm mb-4">
           Anyone with this link can view the content. Share carefully.
@@ -46,13 +53,12 @@ export function Share({ docId, encryptionKey }: ShareProps) {
       >
         {isCopied ? "copied_" : "[copy]"}
       </button>
+      <Link
+        to="/"
+        className="mt-4 block w-full border border-neutral-700 text-neutral-300 font-mono text-sm py-3 px-4 rounded hover:border-neutral-500 hover:text-neutral-100 transition-colors text-center uppercase tracking-wider"
+      >
+        [new]
+      </Link>
     </div>
   );
-}
-
-// Helper to convert Uint8Array to hex string
-function keyToHex(key: Uint8Array): string {
-  return Array.from(key)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
 }

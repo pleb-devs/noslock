@@ -1,12 +1,17 @@
 import sodium from "libsodium-wrappers";
+import { cryptoReady } from ".";
 
 /**
  * Decrypts ciphertext using XChaCha20-Poly1305.
+ * This function implements a zero-knowledge decryption system where
+ * all decryption occurs locally in the browser and no plaintext
+ * ever leaves the user's device.
  *
  * @param ciphertext - Encrypted data
  * @param nonce - 24-byte nonce used for encryption
  * @param key - 32-byte key used for encryption
  * @returns Decrypted plaintext
+ * @throws DecryptionError if decryption fails due to invalid key or corrupted data
  */
 export class DecryptionError extends Error {
   constructor(message: string) {
@@ -20,7 +25,7 @@ export async function decryptPaste(
   nonce: Uint8Array,
   key: Uint8Array,
 ): Promise<string> {
-  await sodium.ready;
+  await cryptoReady;
 
   let plaintext: Uint8Array | null = null;
 
@@ -34,8 +39,8 @@ export async function decryptPaste(
     );
 
     return sodium.to_string(plaintext);
-  } catch (error) {
-    console.log("decryption error", error);
+  } catch {
+    // Don't log the actual error as it could contain sensitive info
     throw new DecryptionError(
       "Failed to decrypt: invalid key or corrupted data",
     );
