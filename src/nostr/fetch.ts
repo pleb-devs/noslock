@@ -4,7 +4,7 @@ import { NotFoundError, InvalidEventError } from "./errors";
 
 export async function fetchPaste(
   docId: string,
-): Promise<{ nonce: Uint8Array; ciphertext: Uint8Array } | null> {
+): Promise<{ nonce: Uint8Array; ciphertext: Uint8Array }> {
   // Validate docId is 64-char hex
   if (!/^[a-f0-9]{64}$/i.test(docId)) {
     throw new Error("Invalid docId format: must be 64-character hex string");
@@ -35,11 +35,17 @@ const event = await Promise.race([
     console.log("🔗 Document ID in note:", docId);
 
     // Decode base64 content
- const combined = Uint8Array.from(atob(event.content), (c) => c.charCodeAt(0));
-     if (combined.length < 24) {
-       console.log("❌ Event content too short:", event.content);
-       throw new InvalidEventError();
-     }
+    let combined: Uint8Array;
+    try {
+      combined = Uint8Array.from(atob(event.content), (c) => c.charCodeAt(0));
+    } catch (err) {
+      console.error("❌ Invalid base64 in event content:", err);
+      throw new InvalidEventError();
+    }
+    if (combined.length < 24) {
+      console.log("❌ Event content too short:", event.content);
+      throw new InvalidEventError();
+    }
 
     // Split into nonce (24 bytes) and ciphertext
     const nonce = combined.slice(0, 24);

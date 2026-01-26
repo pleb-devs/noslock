@@ -9,6 +9,17 @@ import {
 } from "snstr";
 import { DEFAULT_RELAYS } from "./client";
 
+// Convert Uint8Array to base64 using chunked approach to avoid RangeError on large arrays
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  const CHUNK_SIZE = 65535;
+  let binaryStr = "";
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.length));
+    binaryStr += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return btoa(binaryStr);
+}
+
 export async function publishPaste(
   docId: string,
   nonce: Uint8Array,
@@ -18,7 +29,7 @@ export async function publishPaste(
   const combined = new Uint8Array(nonce.length + ciphertext.length);
   combined.set(nonce);
   combined.set(ciphertext, nonce.length);
-  const content = btoa(String.fromCharCode(...combined));
+  const content = uint8ArrayToBase64(combined);
 
   const keys = await generateKeypair();
   const pubkey = getPublicKey(keys.privateKey);

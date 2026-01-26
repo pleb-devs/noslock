@@ -6,6 +6,7 @@ import { Share } from "./components/Share";
 import { LinkReader } from "./components/LinkReader";
 import sodium from "libsodium-wrappers";
 import { publishPaste } from "./nostr/publish";
+import { buildCapabilityUrl } from "./utils/url";
 
 function Home({
   onEncrypt,
@@ -51,23 +52,23 @@ function Home({
 
 function DocIdRoute({
   stateDocId,
-  stateKey,
+  capabilityUrl,
 }: {
   stateDocId: string | null;
-  stateKey: Uint8Array | null;
+  capabilityUrl: string | null;
 }) {
   const { docId: urlDocId } = useParams<{ docId: string }>();
 
   // Only show Share if state docId matches URL docId (user just created this paste)
-  if (stateDocId && stateKey && stateDocId === urlDocId) {
-    return <Share docId={stateDocId} encryptionKey={stateKey} />;
+  if (stateDocId && capabilityUrl && stateDocId === urlDocId) {
+    return <Share docId={stateDocId} capabilityUrl={capabilityUrl} />;
   }
   return <Reader />;
 }
 
 function App() {
   const [docId, setDocId] = useState<string | null>(null);
-  const [key, setKey] = useState<Uint8Array | null>(null);
+  const [capabilityUrl, setCapabilityUrl] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleEncrypt = async (
@@ -79,23 +80,25 @@ function App() {
     console.log("📝 App: Received encrypted data from Editor");
     console.log("🔗 Document ID:", id);
 
-    // Set state for Share component
+    // Generate capability URL immediately (key used locally, not stored in state)
+    const capUrl = buildCapabilityUrl(id, encryptionKey);
     setDocId(id);
-    setKey(encryptionKey);
+    setCapabilityUrl(capUrl);
 
     // Publish to nostr
     console.log("📦 App: Publishing paste to nostr relays...");
     try {
       await publishPaste(id, non, cipher);
+
+      // Navigate to share page with key hash only on successful publish
+      const keyHex = sodium.to_hex(encryptionKey);
+      if (!window.location.pathname.startsWith(`/${id}`)) {
+        console.log("🧭 App: Navigating to share URL:", `/${id}#${keyHex}`);
+        navigate(`/${id}#${keyHex}`);
+      }
     } catch (err) {
       console.error(err);
-    }
-
-    // Navigate to share page with key hash
-    const keyHex = sodium.to_hex(encryptionKey);
-    if (!window.location.pathname.startsWith(`/${id}`)) {
-      console.log("🧭 App: Navigating to share URL:", `/${id}#${keyHex}`);
-      navigate(`/${id}#${keyHex}`);
+      return;
     }
   };
 
@@ -114,7 +117,7 @@ function App() {
           <Route path="/" element={<Home onEncrypt={handleEncrypt} />} />
           <Route
             path="/:docId"
-            element={<DocIdRoute stateDocId={docId} stateKey={key} />}
+            element={<DocIdRoute stateDocId={docId} capabilityUrl={capabilityUrl} />}
           />
         </Routes>
       </main>

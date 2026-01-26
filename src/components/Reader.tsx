@@ -42,11 +42,6 @@ export function Reader() {
       try {
         const result = await fetchPaste(docId);
         if (cancelled) return;
-        if (!result) {
-          console.log("❌ No data found for document ID:", docId);
-          setState("not_found");
-          return;
-        }
         console.log("✅ Data fetched successfully");
         setState("decrypting");
         console.log("🔐 Decrypting content...");
@@ -137,7 +132,7 @@ export function Reader() {
               error: could not reach relays
             </p>
             <p className="text-neutral-500 font-mono text-xs mt-2">
-              // network timeout or relay unavailable
+              {"// network timeout or relay unavailable"}
             </p>
           </div>
         )}

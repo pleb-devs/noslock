@@ -1,6 +1,6 @@
 # 🔒 Noslock Cryptography Implementation Review
 
-**Review Date:** 2024
+**Review Date:** 2026
 **Scope:** End-to-end cryptography review including all adjacent code
 **Focus:** Zero-knowledge encryption, XChaCha20-Poly1305 implementation, Nostr integration
 
@@ -347,20 +347,19 @@ const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
 **Performance Impact:**
 - **LOW:** Multiple `sodium.ready` calls
 - **LOW:** Unnecessary URL parsing
-- **LOW:** No memoization for key derivation
 
-**Fix:** Add basic optimizations:
+**Fix:** Add basic optimizations for non-sensitive operations only.
+
 ```typescript
-// Memoize derived values
-const keyCache = new Map<string, Uint8Array>();
-
+// SECURITY WARNING: Never cache cryptographic keys!
+// Caching keys in memory violates zeroization requirements (see C2).
+// Always convert fresh and zeroize when done.
 export function hexToKey(hex: string): Uint8Array {
-  if (keyCache.has(hex)) return keyCache.get(hex)!;
-  const key = sodium.from_hex(hex);
-  keyCache.set(hex, key);
-  return key;
+  return sodium.from_hex(hex);
 }
 ```
+
+**Note:** The `sodium.from_hex()` conversion is fast (~microseconds). The marginal performance gain from caching does not justify the security risk of retaining key material in memory indefinitely.
 
 ---
 

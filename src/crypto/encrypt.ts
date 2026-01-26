@@ -24,6 +24,7 @@ export async function encryptPaste(plaintext: string): Promise<EncryptedPaste> {
   await cryptoReady;
 
   let key: Uint8Array | null = null;
+  let plaintextBytes: Uint8Array | null = null;
 
   try {
     // Generate random 32-byte symmetric key
@@ -43,7 +44,7 @@ export async function encryptPaste(plaintext: string): Promise<EncryptedPaste> {
 
     // Validate input size to prevent DoS attacks
     const NOSTR_SIZE_LIMIT = 128 * 1024; // 128KB Nostr event limit
-    const plaintextBytes = sodium.from_string(plaintext);
+    plaintextBytes = sodium.from_string(plaintext);
     if (plaintextBytes.length > NOSTR_SIZE_LIMIT) {
       throw new Error(
         `Content too large: ${plaintextBytes.length} > ${NOSTR_SIZE_LIMIT}`,
@@ -69,5 +70,6 @@ export async function encryptPaste(plaintext: string): Promise<EncryptedPaste> {
   } finally {
     // Clear sensitive data from memory
     if (key) sodium.memzero(key);
+    if (plaintextBytes) sodium.memzero(plaintextBytes);
   }
 }

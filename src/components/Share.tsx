@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { buildCapabilityUrl } from "../utils/url";
 import { copyToClipboard } from "../utils/clipboard";
-import sodium from "libsodium-wrappers";
 
 interface ShareProps {
   docId: string;
-  encryptionKey: Uint8Array;
+  capabilityUrl: string;
 }
 
-export function Share({ docId, encryptionKey }: ShareProps) {
+export function Share({ docId, capabilityUrl }: ShareProps) {
   const [isCopied, setIsCopied] = useState(false);
-  const capabilityUrl = buildCapabilityUrl(docId, encryptionKey);
+  // Extract key hex from capability URL for display
+  const keyHex = capabilityUrl.split("#")[1] || "";
 
   // Prevent capability URL from appearing in browser history
   useEffect(() => {
@@ -20,11 +19,10 @@ export function Share({ docId, encryptionKey }: ShareProps) {
 
   console.log("📤 Share component rendering");
   console.log("🔗 Document ID:", docId);
-  console.log("🔑 Encryption Key (hex):", encryptionKey);
 
   const handleCopy = async () => {
     try {
-      console.log("📋 Copying capability URL to clipboard:", capabilityUrl);
+      console.log("📋 Copying capability URL to clipboard: /", docId, "#[KEY REDACTED]");
       await copyToClipboard(capabilityUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
@@ -41,7 +39,7 @@ export function Share({ docId, encryptionKey }: ShareProps) {
         </h2>
         <div className="bg-neutral-900 border border-neutral-800 rounded p-4 font-mono text-sm text-green-400 break-all select-all mb-4">
           <span className="text-neutral-500">noslock://</span>
-          {docId}#{sodium.to_hex(encryptionKey)}
+          {docId}#{keyHex}
         </div>
         <p className="text-neutral-500 font-mono text-sm mb-4">
           Anyone with this link can view the content. Share carefully.
