@@ -12,16 +12,11 @@ export function LinkReader() {
     if (!link.trim()) return;
 
     try {
-      console.log("🔗 Parsing capability URL:", link.trim());
       await sodium.ready;
       const { docId, key } = parseCapabilityUrl(link.trim());
-      console.log("✅ Parsed document ID:", docId);
-      console.log("🔑 Parsed encryption key:", key);
       const keyHex = sodium.to_hex(key);
-      console.log("🔐 Key as hex:", keyHex);
       navigate(`/${docId}#${keyHex}`);
-    } catch (err) {
-      console.error("❌ Failed to parse link:", err);
+    } catch {
       setError("invalid link format");
     }
   }

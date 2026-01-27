@@ -3,63 +3,66 @@ import { useParams, useLocation, Link } from "react-router-dom";
 import { fetchPaste } from "../nostr/fetch";
 import { decryptPaste } from "../crypto/decrypt";
 import { hexToKey } from "../crypto/keys";
+import { NotFoundError, InvalidEventError } from "../nostr/errors";
 
 export function Reader() {
   const { docId } = useParams<{ docId: string }>();
   const { hash } = useLocation();
   const [state, setState] = useState<
-    "fetching" | "decrypting" | "done" | "not_found" | "decrypt_error"
+    "fetching" | "decrypting" | "done" | "not_found" | "decrypt_error" | "fetch_error"
   >("fetching");
   const [content, setContent] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
-      console.log("📖 Reader component loading...");
       if (!docId || !hash) {
-        console.log("❌ Missing docId or hash");
         setState("decrypt_error");
         return;
       }
-      console.log("🔗 Document ID:", docId);
-      console.log("🔑 Decryption key hash:", hash);
 
       const keyHex = hash.slice(1);
       let key: Uint8Array;
       try {
-        console.log("🔑 Converting hex key to Uint8Array...");
-        key = hexToKey(keyHex);
-        console.log("✅ Key conversion successful");
-      } catch (error) {
-        console.error("❌ Key conversion failed:", error);
-        setState("decrypt_error");
+        key = await hexToKey(keyHex);
+      } catch {
+        if (!cancelled) setState("decrypt_error");
         return;
       }
-      setState("fetching");
-      console.log("🔍 Fetching encrypted data from relays...");
-      const result = await fetchPaste(docId);
-      if (!result) {
-        console.log("❌ No data found for document ID:", docId);
-        setState("not_found");
-        return;
-      }
-      console.log("✅ Data fetched successfully");
-      setState("decrypting");
-      console.log("🔐 Decrypting content...");
+      if (!cancelled) setState("fetching");
       try {
-        const plaintext = await decryptPaste(
-          result.ciphertext,
-          result.nonce,
-          key,
-        );
-        console.log("✅ Decryption successful");
-        setContent(plaintext);
-        setState("done");
+        const result = await fetchPaste(docId);
+        if (cancelled) return;
+        setState("decrypting");
+        try {
+          const plaintext = await decryptPaste(
+            result.ciphertext,
+            result.nonce,
+            key,
+          );
+          if (cancelled) return;
+          setContent(plaintext);
+          setState("done");
+        } catch {
+          if (!cancelled) setState("decrypt_error");
+        }
       } catch (error) {
-        console.error("❌ Decryption failed:", error);
-        setState("decrypt_error");
+        if (cancelled) return;
+        if (error instanceof NotFoundError) {
+          setState("not_found");
+        } else if (error instanceof InvalidEventError) {
+          setState("decrypt_error");
+        } else {
+          setState("fetch_error");
+        }
       }
     }
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [docId, hash]);
 
   return (
@@ -107,6 +110,16 @@ export function Reader() {
             </p>
             <p className="text-neutral-500 font-mono text-xs mt-2">
               // key mismatch or corrupted data
+            </p>
+          </div>
+        )}
+        {state === "fetch_error" && (
+          <div className="border border-red-900 bg-red-950/50 rounded p-4">
+            <p className="text-red-400 font-mono text-sm">
+              error: could not reach relays
+            </p>
+            <p className="text-neutral-500 font-mono text-xs mt-2">
+              {"// network timeout or relay unavailable"}
             </p>
           </div>
         )}

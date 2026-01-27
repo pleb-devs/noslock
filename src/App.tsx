@@ -1,10 +1,12 @@
-import { Routes, Route, useNavigate, Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { Routes, Route, useNavigate, Link, useParams } from "react-router-dom";
+import { useState } from "react";
 import { Editor } from "./components/Editor";
-import { Share } from "./components/Share";
 import { Reader } from "./components/Reader";
+import { Share } from "./components/Share";
 import { LinkReader } from "./components/LinkReader";
+import sodium from "libsodium-wrappers";
 import { publishPaste } from "./nostr/publish";
+import { buildCapabilityUrl } from "./utils/url";
 
 function Home({
   onEncrypt,
@@ -48,38 +50,51 @@ function Home({
   );
 }
 
+function DocIdRoute({
+  stateDocId,
+  capabilityUrl,
+}: {
+  stateDocId: string | null;
+  capabilityUrl: string | null;
+}) {
+  const { docId: urlDocId } = useParams<{ docId: string }>();
+
+  // Only show Share if state docId matches URL docId (user just created this paste)
+  if (stateDocId && capabilityUrl && stateDocId === urlDocId) {
+    return <Share docId={stateDocId} capabilityUrl={capabilityUrl} />;
+  }
+  return <Reader />;
+}
+
 function App() {
   const [docId, setDocId] = useState<string | null>(null);
-  const [key, setKey] = useState<Uint8Array | null>(null);
-  const [ciphertext, setCiphertext] = useState<Uint8Array | null>(null);
-  const [nonce, setNonce] = useState<Uint8Array | null>(null);
+  const [capabilityUrl, setCapabilityUrl] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleEncrypt = (
+  const handleEncrypt = async (
     id: string,
     encryptionKey: Uint8Array,
     cipher: Uint8Array,
     non: Uint8Array,
   ) => {
-    console.log("📝 App: Received encrypted data from Editor");
-    console.log("🔗 Document ID:", id);
+    // Generate capability URL immediately (key used locally, not stored in state)
+    const capUrl = buildCapabilityUrl(id, encryptionKey);
     setDocId(id);
-    setKey(encryptionKey);
-    setCiphertext(cipher);
-    setNonce(non);
-  };
+    setCapabilityUrl(capUrl);
 
-  useEffect(() => {
-    if (docId && key && ciphertext && nonce) {
-      console.log("📦 App: Publishing paste to nostr relays...");
-      console.log("🔗 Document ID:", docId);
-      publishPaste(docId, nonce, ciphertext).catch(console.error);
-      if (!window.location.pathname.startsWith(`/${docId}`)) {
-        console.log("🧭 App: Navigating to share URL:", `/${docId}`);
-        navigate(`/${docId}`);
+    // Publish to nostr
+    try {
+      await publishPaste(id, non, cipher);
+
+      // Navigate to share page with key hash only on successful publish
+      const keyHex = sodium.to_hex(encryptionKey);
+      if (!window.location.pathname.startsWith(`/${id}`)) {
+        navigate(`/${id}#${keyHex}`);
       }
+    } catch {
+      return;
     }
-  }, [docId, key, ciphertext, nonce, navigate]);
+  };
 
   return (
     <div className="min-h-screen bg-neutral-900 text-neutral-100 font-mono">
@@ -96,13 +111,7 @@ function App() {
           <Route path="/" element={<Home onEncrypt={handleEncrypt} />} />
           <Route
             path="/:docId"
-            element={
-              docId && key ? (
-                <Share docId={docId} encryptionKey={key!} />
-              ) : (
-                <Reader />
-              )
-            }
+            element={<DocIdRoute stateDocId={docId} capabilityUrl={capabilityUrl} />}
           />
         </Routes>
       </main>

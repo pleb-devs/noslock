@@ -18,16 +18,10 @@ export function Editor({ onEncrypt }: EditorProps) {
     if (!content.trim()) return;
     setIsEncrypting(true);
     try {
-      console.log("🔒 Starting encryption process...");
       const { docId, key, ciphertext, nonce } = await encryptPaste(content);
-      console.log("✅ Encryption completed successfully");
-      console.log("🔗 Document ID:", docId);
-      console.log("🔑 Key (hex):", key);
-      console.log("📊 Ciphertext (hex):", ciphertext);
-      console.log("🔐 Nonce (hex):", nonce);
       onEncrypt(docId, key, ciphertext, nonce);
-    } catch (error) {
-      console.error("❌ Encryption failed:", error);
+    } catch {
+      // Encryption failed - user will see the button re-enable
     } finally {
       setIsEncrypting(false);
     }
