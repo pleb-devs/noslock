@@ -5,7 +5,6 @@ import {
   getPublicKey,
   signEvent,
   getEventHash,
-  encodeNoteId,
 } from "snstr";
 import { DEFAULT_RELAYS } from "./client";
 
@@ -50,9 +49,6 @@ export async function publishPaste(
   const sig = await signEvent(id, keys.privateKey);
   const signedEvent = { ...unsignedEvent, id, sig };
 
-  console.log("📝 Publishing note:", encodeNoteId(id));
-  console.log("🔗 Document ID:", docId);
-
   const pool = new RelayPool(DEFAULT_RELAYS);
   try {
     // Publish to all relays - pool.publish returns an array of promises
@@ -74,12 +70,8 @@ export async function publishPaste(
       const reasons = results.map((r) => r.reason).filter(Boolean).join(", ");
       throw new Error(`All relays failed to publish: ${reasons || "unknown error"}`);
     }
-    console.log(
-      `✅ Successfully published to ${successful} of ${DEFAULT_RELAYS.length} relays`,
-    );
   } finally {
     await pool.close();
   }
-  console.log("✅ Successfully published note:", encodeNoteId(id));
   return docId;
 }

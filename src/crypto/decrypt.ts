@@ -27,6 +27,18 @@ export async function decryptPaste(
 ): Promise<string> {
   await cryptoReady;
 
+  // Validate input lengths to prevent undefined behavior
+  if (key.length !== 32) {
+    throw new DecryptionError("Invalid key length");
+  }
+  if (nonce.length !== 24) {
+    throw new DecryptionError("Invalid nonce length");
+  }
+  // XChaCha20-Poly1305 requires at least 16 bytes (Poly1305 auth tag)
+  if (ciphertext.length < 16) {
+    throw new DecryptionError("Invalid ciphertext length");
+  }
+
   let plaintext: Uint8Array | null = null;
 
   try {

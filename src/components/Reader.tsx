@@ -17,34 +17,24 @@ export function Reader() {
     let cancelled = false;
 
     async function load() {
-      console.log("📖 Reader component loading...");
       if (!docId || !hash) {
-        console.log("❌ Missing docId or hash");
         setState("decrypt_error");
         return;
       }
-      console.log("🔗 Document ID:", docId);
-      console.log("🔑 Decryption key hash:", hash);
 
       const keyHex = hash.slice(1);
       let key: Uint8Array;
       try {
-        console.log("🔑 Converting hex key to Uint8Array...");
         key = await hexToKey(keyHex);
-        console.log("✅ Key conversion successful");
-      } catch (error) {
-        console.error("❌ Key conversion failed:", error);
+      } catch {
         if (!cancelled) setState("decrypt_error");
         return;
       }
       if (!cancelled) setState("fetching");
-      console.log("🔍 Fetching encrypted data from relays...");
       try {
         const result = await fetchPaste(docId);
         if (cancelled) return;
-        console.log("✅ Data fetched successfully");
         setState("decrypting");
-        console.log("🔐 Decrypting content...");
         try {
           const plaintext = await decryptPaste(
             result.ciphertext,
@@ -52,15 +42,12 @@ export function Reader() {
             key,
           );
           if (cancelled) return;
-          console.log("✅ Decryption successful");
           setContent(plaintext);
           setState("done");
-        } catch (error) {
-          console.error("❌ Decryption failed:", error);
+        } catch {
           if (!cancelled) setState("decrypt_error");
         }
       } catch (error) {
-        console.error("❌ Fetch error:", error);
         if (cancelled) return;
         if (error instanceof NotFoundError) {
           setState("not_found");

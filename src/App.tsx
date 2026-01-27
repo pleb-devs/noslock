@@ -77,27 +77,21 @@ function App() {
     cipher: Uint8Array,
     non: Uint8Array,
   ) => {
-    console.log("📝 App: Received encrypted data from Editor");
-    console.log("🔗 Document ID:", id);
-
     // Generate capability URL immediately (key used locally, not stored in state)
     const capUrl = buildCapabilityUrl(id, encryptionKey);
     setDocId(id);
     setCapabilityUrl(capUrl);
 
     // Publish to nostr
-    console.log("📦 App: Publishing paste to nostr relays...");
     try {
       await publishPaste(id, non, cipher);
 
       // Navigate to share page with key hash only on successful publish
       const keyHex = sodium.to_hex(encryptionKey);
       if (!window.location.pathname.startsWith(`/${id}`)) {
-        console.log("🧭 App: Navigating to share URL:", `/${id}#${keyHex}`);
         navigate(`/${id}#${keyHex}`);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       return;
     }
   };
