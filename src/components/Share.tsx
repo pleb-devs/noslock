@@ -17,17 +17,13 @@ export function Share({ docId, capabilityUrl }: ShareProps) {
     window.history.replaceState(null, "", `/${docId}`);
   }, [docId]);
 
-  console.log("📤 Share component rendering");
-  console.log("🔗 Document ID:", docId);
-
   const handleCopy = async () => {
     try {
-      console.log("📋 Copying capability URL to clipboard: /", docId, "#[KEY REDACTED]");
       await copyToClipboard(capabilityUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
+    } catch {
+      // Silently fail - user can manually copy
     }
   };
 
